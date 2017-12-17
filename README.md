@@ -1,5 +1,9 @@
 MiniLisp
 ========
+OPENSOURCE PROJECT
+B189053 이동희
+B289025 김태관
+========
 
 One day I wanted to see what I can do with 1k lines of C and
 decided to write a Lisp interpreter. That turned to be a
