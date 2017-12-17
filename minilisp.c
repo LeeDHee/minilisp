@@ -541,8 +541,8 @@ static void print(Obj *obj) {
     CASE(TFUNCTION, "<function>");
     CASE(TMACRO, "<macro>");
     CASE(TMOVED, "<moved>");
-    CASE(TTRUE, "t");
-    CASE(TNIL, "()");
+    CASE(TTRUE, "T"); // 
+    CASE(TNIL, "Nil"); //
 #undef CASE
     default:
         error("Bug: print: Unknown tag type: %d", obj->type);
@@ -786,7 +786,15 @@ static Obj *prim_plus(void *root, Obj **env, Obj **list) {
     }
     return make_int(root, sum);
 }
-
+static Obj *prim_multi(void *root, Obj **env, Obj **list) {
+	    int mul = 1;
+	    for (Obj *args = eval_list(root, env, list); args != Nil; args = args->cdr) {
+		if (args->car->type != TINT)
+		    error("+ takes only numbers");
+		mul *= args->car->value;
+	    }
+	    return make_int(root, mul);
+	}
 // (- <integer> ...)
 static Obj *prim_minus(void *root, Obj **env, Obj **list) {
     Obj *args = eval_list(root, env, list);
@@ -803,14 +811,50 @@ static Obj *prim_minus(void *root, Obj **env, Obj **list) {
 
 // (< <integer> <integer>)
 static Obj *prim_lt(void *root, Obj **env, Obj **list) {
-    Obj *args = eval_list(root, env, list);
-    if (length(args) != 2)
-        error("malformed <");
-    Obj *x = args->car;
-    Obj *y = args->cdr->car;
-    if (x->type != TINT || y->type != TINT)
-        error("< takes only numbers");
-    return x->value < y->value ? True : Nil;
+	Obj *args = eval_list(root, env, list);
+	if (length(args) != 2)
+		error("malformed <");
+	Obj *x = args->car;
+	Obj *y = args->cdr->car;
+	if (x->type != TINT || y->type != TINT)
+		error("< takes only numbers");
+	return x->value < y->value ? True : Nil;
+}
+
+// (> <integer> <integer>)
+static Obj *prim_rt(void *root, Obj **env, Obj **list) {	/**/
+	Obj *args = eval_list(root, env, list);
+	if (length(args) != 2)
+		error("malformed <");
+	Obj *x = args->car;
+	Obj *y = args->cdr->car;
+	if (x->type != TINT || y->type != TINT)
+		error("< takes only numbers");
+	return x->value > y->value ? True : Nil;
+}
+
+// (<= <integer> <integer>)
+static Obj *prim_let(void *root, Obj **env, Obj **list) {	/**/
+	Obj *args = eval_list(root, env, list);
+	if (length(args) != 2)
+		error("malformed <");
+	Obj *x = args->car;
+	Obj *y = args->cdr->car;
+	if (x->type != TINT || y->type != TINT)
+		error("< takes only numbers");
+	return x->value <= y->value ? True : Nil;
+}
+
+// (>= <integer> <integer>)
+static Obj *prim_ret(void *root, Obj **env, Obj **list) {	/**/
+	Obj *args = eval_list(root, env, list);
+	if (length(args) != 2)
+		error("malformed <");
+	Obj *x = args->car;
+	Obj *y = args->cdr->car;
+	if (x->type != TINT || y->type != TINT)
+		error("< takes only numbers");
+	return x->value >= y->value ? True : Nil;
 }
 
 static Obj *handle_function(void *root, Obj **env, Obj **list, int type) {
@@ -901,22 +945,42 @@ static Obj *prim_if(void *root, Obj **env, Obj **list) {
 
 // (= <integer> <integer>)
 static Obj *prim_num_eq(void *root, Obj **env, Obj **list) {
-    if (length(*list) != 2)
-        error("Malformed =");
-    Obj *values = eval_list(root, env, list);
-    Obj *x = values->car;
-    Obj *y = values->cdr->car;
-    if (x->type != TINT || y->type != TINT)
-        error("= only takes numbers");
-    return x->value == y->value ? True : Nil;
+	if (length(*list) != 2)
+		error("Malformed =");
+	Obj *values = eval_list(root, env, list);
+	Obj *x = values->car;
+	Obj *y = values->cdr->car;
+	if (x->type != TINT || y->type != TINT)
+		error("= only takes numbers");
+	return x->value == y->value ? True : Nil;
+}
+
+// (/= <integer> <integer>)
+static Obj *prim_num_neq(void *root, Obj **env, Obj **list) {	/**/
+	if (length(*list) != 2)
+		error("Malformed =");
+	Obj *values = eval_list(root, env, list);
+	Obj *x = values->car;
+	Obj *y = values->cdr->car;
+	if (x->type != TINT || y->type != TINT)
+		error("= only takes numbers");
+	return x->value != y->value ? True : Nil;
 }
 
 // (eq expr expr)
 static Obj *prim_eq(void *root, Obj **env, Obj **list) {
-    if (length(*list) != 2)
-        error("Malformed eq");
-    Obj *values = eval_list(root, env, list);
-    return values->car == values->cdr->car ? True : Nil;
+	if (length(*list) != 2)
+		error("Malformed eq");
+	Obj *values = eval_list(root, env, list);
+	return values->car == values->cdr->car ? True : Nil;
+}
+
+// (npteq expr expr)
+static Obj *prim_neq(void *root, Obj **env, Obj **list) {
+	if (length(*list) != 2)
+		error("Malformed eq");
+	Obj *values = eval_list(root, env, list);
+	return values->car != values->cdr->car ? True : Nil;
 }
 
 static void add_primitive(void *root, Obj **env, char *name, Primitive *fn) {
@@ -951,8 +1015,15 @@ static void define_primitives(void *root, Obj **env) {
     add_primitive(root, env, "lambda", prim_lambda);
     add_primitive(root, env, "if", prim_if);
     add_primitive(root, env, "=", prim_num_eq);
-    add_primitive(root, env, "eq", prim_eq);
     add_primitive(root, env, "println", prim_println);
+
+    add_primitive(root, env, "*", prim_multi);	//곱셈 함수 추가
+    add_primitive(root, env, ">", prim_rt);		//  비교연산자들 추가
+    add_primitive(root, env, "<=", prim_let);	//
+    add_primitive(root, env, ">=", prim_ret);	//
+    add_primitive(root, env, "/=", prim_num_neq);	//
+    add_primitive(root, env, "eq", prim_eq);		// <- 정확한 함수 내용
+    add_primitive(root, env, "neq", prim_neq);		//    
 }
 
 //======================================================================
@@ -993,4 +1064,4 @@ int main(int argc, char **argv) {
         print(eval(root, env, expr));
         printf("\n");
     }
-}
+}//
